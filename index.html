@@ -33,19 +33,18 @@
 <body>
 <main>
   <h1 class="greeting">Flowers for you</h1>
-  <div class="art"><canvas id="bouquet" role="img" aria-label="A still ASCII bouquet: golden sunflowers with dark seed centers, purple and white asters, red lilies, white baby's breath, and leafy green stems on black.">A bouquet of sunflowers, purple and white asters, red lilies, and green foliage.</canvas></div>
-  <footer aria-label="Copy the bouquet">
+  <div class="art"><canvas id="bouquet" role="img" aria-label="ASCII flowers">ASCII flowers.</canvas></div>
+  <footer aria-label="Copy flowers">
     <button id="copy" type="button" aria-describedby="copy-note">Copy ASCII text</button>
     <p id="copy-note" class="copy-note">Copy it and paste it into Notepad.</p>
-    <textarea id="copyFallback" readonly aria-label="ASCII bouquet text. Select all and copy."></textarea>
+    <textarea id="copyFallback" readonly aria-label="Flower text. Select all and copy."></textarea>
     <p id="status" role="status" aria-live="polite"></p>
   </footer>
 </main>
 <noscript><style>main{display:none}</style><p class="fallback">This bouquet needs JavaScript to draw its ASCII characters. Enable JavaScript and reload.</p></noscript>
 <script>
 'use strict';
-// Original artwork. The colored-ASCII lily arrangement was inspired by
-// https://github.com/Isaac-opz/asciiFlowers. No external code or assets are used.
+// Reference: https://github.com/Isaac-opz/asciiFlowers
 const canvas=document.getElementById('bouquet');
 const status=document.getElementById('status');
 const ramp=' .:-=+*cxoaX#%&@';
@@ -79,7 +78,7 @@ function drawScene(ctx) {
   }
   function sunflower(x,y,r,rotation) {
     ctx.save();ctx.translate(x,y);ctx.rotate(rotation);ctx.scale(1,.90);
-    // Two staggered rings of pointed ray florets around a seed-filled disk.
+    // Draw the sunflower.
     for(let ring=0;ring<2;ring++)for(let n=0;n<26;n++) {
       ctx.save();ctx.rotate(n*Math.PI*2/26+ring*.12);
       const tip=r*(ring?.91:1)*range(.94,1.04),w=r*(ring?.11:.125),base=r*.27;
@@ -108,7 +107,7 @@ function drawScene(ctx) {
     ctx.fillStyle='#f7d975';for(let n=0;n<18;n++) { const a=n*2.3999,d=Math.sqrt(n/18)*r*.15;ctx.fillRect(Math.cos(a)*d,Math.sin(a)*d,2.5,2.5); }
     ctx.restore();
   }
-  // The fan and the gathered stems keep the mixed flowers a single bouquet.
+  // Draw the stems and flowers.
   const sprigs=[[155,450],[235,250],[355,155],[595,150],[765,260],[850,470],[190,650],[810,670]];
   for(const tip of sprigs) { stem(tip,'#355b23',3);for(let n=0;n<12;n++) { const b=curve(tip,.24+n*.063),side=n%2?1:-1;leaf(b,[b[0]+side*range(28,55),b[1]-range(24,45)],range(9,16),n%3===0); } }
   const flowers=[['white',270,225,65,-.2],['purple',735,235,73,.3],['lily',180,460,90,-.3],['lily',825,465,86,.3],['sun',500,220,132,-.1],['sun',340,415,107,-.2],['sun',665,420,108,.2],['purple',230,605,68,-.3],['purple',470,530,73,.15],['white',760,605,72,.3],['purple',595,630,56,.1]];
