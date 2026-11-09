@@ -21,6 +21,7 @@
   button:active { background:#222; }
   button:disabled { color:#666; cursor:wait; }
   button:focus-visible { outline:2px solid #eed681; outline-offset:4px; }
+  .copy-note { margin:0; max-width:310px; padding:8px 12px; border:1px solid #383838; border-radius:3px; color:#c9c9c9; font-size:12px; }
   #status { display:block; flex-basis:100%; text-align:center; min-height:19px; margin:0; color:#b8b8b8; font-size:12px; }
   .fallback { max-width:500px; margin:32px auto; padding:24px; }
   #copyFallback { display:none; width:min(600px,90vw); height:160px; background:#111; color:white; font:12px/1.2 monospace; border:1px solid #888; }
@@ -31,9 +32,9 @@
 <body>
 <main>
   <div class="art"><canvas id="bouquet" role="img" aria-label="A still ASCII bouquet: golden sunflowers with dark seed centers, purple asters, red lilies, white baby's breath, and leafy green stems on black.">A bouquet of sunflowers, purple asters, red lilies, and green foliage.</canvas></div>
-  <footer aria-label="Save or copy the bouquet">
-    <button id="save" type="button">Save image</button>
-    <button id="copy" type="button">Copy ASCII text</button>
+  <footer aria-label="Copy the bouquet">
+    <button id="copy" type="button" aria-describedby="copy-note">Copy ASCII text</button>
+    <p id="copy-note" class="copy-note">Copy the flowers, then paste them into Notepad.<br>Use a monospaced font to keep them aligned.</p>
     <textarea id="copyFallback" readonly aria-label="ASCII bouquet text. Select all and copy."></textarea>
     <p id="status" role="status" aria-live="polite">Trying to make up for the flowers you didn't get.</p>
   </footer>
@@ -46,7 +47,7 @@
 const canvas=document.getElementById('bouquet');
 const status=document.getElementById('status');
 const ramp=' .:-=+*cxoaX#%&@';
-let asciiText='', renderedImage=null;
+let asciiText='';
 function rng(seed) { return () => { seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296; }; }
 function drawScene(ctx) {
   const random=rng(245), range=(a,b)=>a+random()*(b-a);
@@ -132,23 +133,16 @@ function render() {
     const ch=light<.035?' ':ramp[Math.max(1,Math.min(ramp.length-1,Math.floor(light*(ramp.length-1))))];line+=ch;
     if(ch!==' ') { a.fillStyle=`rgb(${r},${g},${b})`;a.fillText(ch,x*6,y*9); }
   }lines.push(line.trimEnd()); }
-  asciiText=lines.join('\n')+'\n';renderedImage=art;
+  asciiText=lines.join('\n')+'\n';
   const dpr=Math.min(window.devicePixelRatio||1,2);canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);
   const c=canvas.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#000';c.fillRect(0,0,rect.width,rect.height);
   const w=scale*1000,h=scale*1100;c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.drawImage(art,(rect.width-w)/2,(rect.height-h)/2,w,h);
 }
-function fail(error) { status.textContent='The bouquet could not be drawn. Please reload or try another browser.';document.getElementById('save').disabled=true;document.getElementById('copy').disabled=true;console.error(error); }
+function fail(error) { status.textContent='The bouquet could not be drawn. Please reload or try another browser.';document.getElementById('copy').disabled=true;console.error(error); }
 try { render();new ResizeObserver(()=>{try{render();}catch(error){fail(error);}}).observe(document.querySelector('.art')); } catch(error){fail(error);}
-document.getElementById('save').addEventListener('click',()=> {
-  if(!renderedImage)return;
-  const button=document.getElementById('save');button.disabled=true;status.textContent='Preparing image…';
-  renderedImage.toBlob(blob=> { button.disabled=false;if(!blob){status.textContent='Image could not be created. Please try again.';return;}
-    const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='ascii-bouquet.png';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);status.textContent='Image download requested. Check your downloads.';
-  },'image/png');
-});
 document.getElementById('copy').addEventListener('click',async()=> {
   const button=document.getElementById('copy'),fallback=document.getElementById('copyFallback');button.disabled=true;
-  try { await navigator.clipboard.writeText(asciiText);fallback.style.display='none';status.textContent='Copied. Paste using a monospaced font; plain text has no color.'; }
+  try { await navigator.clipboard.writeText(asciiText);fallback.style.display='none';status.textContent='Copied. Open Notepad and press Ctrl+V to paste.'; }
   catch { fallback.style.display='block';fallback.value=asciiText;fallback.focus();fallback.select();status.textContent='Clipboard unavailable. Copy the selected text manually.'; }
   finally { button.disabled=false; }
 });
