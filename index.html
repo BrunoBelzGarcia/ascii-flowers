@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#000000">
-<meta name="description" content="A little sunshine and flowers, just for you.">
+<meta name="description" content="Flowers for you">
 <meta property="og:title" content="ascii flowers">
-<meta property="og:description" content="A little sunshine and flowers, just for you.">
+<meta property="og:description" content="Flowers for you">
 <meta property="og:type" content="website">
 <title>ascii flowers</title>
 <style>
@@ -32,8 +32,8 @@
 </head>
 <body>
 <main>
-  <h1 class="greeting">A little sunshine and flowers, just for you.</h1>
-  <div class="art"><canvas id="bouquet" role="img" aria-label="A still ASCII bouquet: golden sunflowers with dark seed centers, purple asters, red lilies, white baby's breath, and leafy green stems on black.">A bouquet of sunflowers, purple asters, red lilies, and green foliage.</canvas></div>
+  <h1 class="greeting">Flowers for you</h1>
+  <div class="art"><canvas id="bouquet" role="img" aria-label="A still ASCII bouquet: golden sunflowers with dark seed centers, purple and white asters, red lilies, white baby's breath, and leafy green stems on black.">A bouquet of sunflowers, purple and white asters, red lilies, and green foliage.</canvas></div>
   <footer aria-label="Copy the bouquet">
     <button id="copy" type="button" aria-describedby="copy-note">Copy ASCII text</button>
     <p id="copy-note" class="copy-note">Copy it and paste it into Notepad.</p>
@@ -96,12 +96,12 @@ function drawScene(ctx) {
     }
     ctx.restore();
   }
-  function aster(x,y,r,rotation) {
+  function aster(x,y,r,rotation,white=false) {
     ctx.save();ctx.translate(x,y);ctx.rotate(rotation);ctx.scale(1,.85);
     for(let ring=0;ring<3;ring++)for(let n=0;n<22;n++) {
       ctx.save();ctx.rotate(n*Math.PI*2/22+ring*.14);
       const tip=r*(1-ring*.16)*range(.94,1.05),w=r*.075;
-      const grad=ctx.createLinearGradient(0,-tip,0,0);grad.addColorStop(0,['#d2b1ff','#b88af5','#edccff'][ring]);grad.addColorStop(1,'#5b2687');
+      const grad=ctx.createLinearGradient(0,-tip,0,0);grad.addColorStop(0,white?['#fffdf5','#eeeee7','#ffffff'][ring]:['#d2b1ff','#b88af5','#edccff'][ring]);grad.addColorStop(1,white?'#a6ad9a':'#5b2687');
       ctx.fillStyle=grad;ctx.beginPath();ctx.moveTo(0,0);ctx.bezierCurveTo(-w*1.6,-tip*.45,-w,-tip,0,-tip);ctx.bezierCurveTo(w,-tip,w*1.6,-tip*.45,0,0);ctx.fill();ctx.restore();
     }
     ctx.fillStyle='#d6ad46';ctx.beginPath();ctx.arc(0,0,r*.17,0,Math.PI*2);ctx.fill();
@@ -111,12 +111,12 @@ function drawScene(ctx) {
   // The fan and the gathered stems keep the mixed flowers a single bouquet.
   const sprigs=[[155,450],[235,250],[355,155],[595,150],[765,260],[850,470],[190,650],[810,670]];
   for(const tip of sprigs) { stem(tip,'#355b23',3);for(let n=0;n<12;n++) { const b=curve(tip,.24+n*.063),side=n%2?1:-1;leaf(b,[b[0]+side*range(28,55),b[1]-range(24,45)],range(9,16),n%3===0); } }
-  const flowers=[['purple',270,225,65,-.2],['purple',735,235,73,.3],['lily',180,460,90,-.3],['lily',825,465,86,.3],['sun',500,220,132,-.1],['sun',340,415,107,-.2],['sun',665,420,108,.2],['purple',230,605,68,-.3],['purple',470,530,73,.15],['purple',760,605,72,.3],['purple',595,630,56,.1]];
+  const flowers=[['white',270,225,65,-.2],['purple',735,235,73,.3],['lily',180,460,90,-.3],['lily',825,465,86,.3],['sun',500,220,132,-.1],['sun',340,415,107,-.2],['sun',665,420,108,.2],['purple',230,605,68,-.3],['purple',470,530,73,.15],['white',760,605,72,.3],['purple',595,630,56,.1]];
   for(const [,x,y] of flowers) { const tip=[x,y];stem(tip);for(let n=0;n<8;n++) { const b=curve(tip,.2+n*.075),side=n%2?-1:1;leaf(b,[b[0]+side*range(58,95),b[1]-range(15,65)],range(8,17),n%2===0); } }
   const clouds=[[355,245],[650,205],[220,350],[785,350],[425,360],[580,360],[315,560],[650,565],[405,650],[565,740]];
   for(const cloud of clouds) { stem(cloud,'#395a2e',1.6);for(let n=0;n<19;n++) { const a=range(0,Math.PI*2),r=range(4,33),x=cloud[0]+Math.cos(a)*r,y=cloud[1]+Math.sin(a)*r*.7;
     ctx.strokeStyle='#778263';ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(...cloud);ctx.lineTo(x,y);ctx.stroke();ctx.fillStyle='#f6f2df';ctx.beginPath();ctx.arc(x,y,range(3.3,5.7),0,Math.PI*2);ctx.fill(); } }
-  for(const [kind,x,y,r,angle] of flowers) { if(kind==='sun')sunflower(x,y,r,angle);else if(kind==='purple')aster(x,y,r,angle);else lily(x,y,r,angle); }
+  for(const [kind,x,y,r,angle] of flowers) { if(kind==='sun')sunflower(x,y,r,angle);else if(kind==='purple'||kind==='white')aster(x,y,r,angle,kind==='white');else lily(x,y,r,angle); }
 }
 function render() {
   const rect=canvas.getBoundingClientRect(),scale=Math.min((rect.width-20)/1000,(rect.height-16)/1100);
