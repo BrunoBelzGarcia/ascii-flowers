@@ -4,7 +4,7 @@ ASCII is a system that gives letters, numbers, and symbols their own number code
 #
 I hope you like it <3
 
-Click on the link to view: https://brunobelzgarcia.github.io/ascii-flowers/
+Click on the link to view it: https://brunobelzgarcia.github.io/ascii-flowers/
 
 #
 Websites used for help:
