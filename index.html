@@ -4,15 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#000000">
-<meta name="description" content="Trying to make up for the flowers you didn't get.">
+<meta name="description" content="A little sunshine and flowers, just for you.">
 <meta property="og:title" content="ascii flowers">
-<meta property="og:description" content="Trying to make up for the flowers you didn't get.">
+<meta property="og:description" content="A little sunshine and flowers, just for you.">
 <meta property="og:type" content="website">
 <title>ascii flowers</title>
 <style>
   * { box-sizing: border-box; }
   html,body { margin:0; width:100%; min-height:100%; background:#000; color:#ddd; font:13px/1.4 system-ui,sans-serif; }
   main { height:100vh; height:100svh; display:flex; flex-direction:column; }
+  .greeting { flex:none; margin:0; padding:max(24px,env(safe-area-inset-top)) 20px 8px; color:#e8dec5; text-align:center; font-size:clamp(15px,2.2vw,20px); font-weight:400; line-height:1.5; }
   .art { flex:1; min-height:0; position:relative; }
   canvas { display:block; width:100%; height:100%; }
   footer { flex:none; display:flex; justify-content:center; align-items:center; flex-wrap:wrap; gap:8px 20px; padding:8px 16px max(10px,env(safe-area-inset-bottom)); }
@@ -31,12 +32,13 @@
 </head>
 <body>
 <main>
+  <h1 class="greeting">A little sunshine and flowers, just for you.</h1>
   <div class="art"><canvas id="bouquet" role="img" aria-label="A still ASCII bouquet: golden sunflowers with dark seed centers, purple asters, red lilies, white baby's breath, and leafy green stems on black.">A bouquet of sunflowers, purple asters, red lilies, and green foliage.</canvas></div>
   <footer aria-label="Copy the bouquet">
     <button id="copy" type="button" aria-describedby="copy-note">Copy ASCII text</button>
     <p id="copy-note" class="copy-note">Copy it and paste it into Notepad.</p>
     <textarea id="copyFallback" readonly aria-label="ASCII bouquet text. Select all and copy."></textarea>
-    <p id="status" role="status" aria-live="polite">Trying to make up for the flowers you didn't get.</p>
+    <p id="status" role="status" aria-live="polite"></p>
   </footer>
 </main>
 <noscript><style>main{display:none}</style><p class="fallback">This bouquet needs JavaScript to draw its ASCII characters. Enable JavaScript and reload.</p></noscript>
@@ -142,7 +144,7 @@ function fail(error) { status.textContent='The bouquet could not be drawn. Pleas
 try { render();new ResizeObserver(()=>{try{render();}catch(error){fail(error);}}).observe(document.querySelector('.art')); } catch(error){fail(error);}
 document.getElementById('copy').addEventListener('click',async()=> {
   const button=document.getElementById('copy'),fallback=document.getElementById('copyFallback');button.disabled=true;
-  try { await navigator.clipboard.writeText(asciiText);fallback.style.display='none';status.textContent=document.querySelector('meta[name="description"]').content; }
+  try { await navigator.clipboard.writeText(asciiText);fallback.style.display='none';status.textContent=''; }
   catch { fallback.style.display='block';fallback.value=asciiText;fallback.focus();fallback.select();status.textContent='Clipboard unavailable. Copy the selected text manually.'; }
   finally { button.disabled=false; }
 });
