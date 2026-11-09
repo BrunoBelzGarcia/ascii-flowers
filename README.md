@@ -1,6 +1,6 @@
 # ascii flowers
 
-ASCII is a system that gives letters, numbers, and symbols their own number codes so computers can store and read text. For example, a capital “A” has the code 65, which the computer stores using zeros and ones. ASCII art uses those text characters, arranged with spaces and line breaks, to make pictures on the screen, from a simple face like (^_^) to detailed drawings.
+ASCII is a system that gives letters, numbers, and symbols their own number codes so computers can store and read text. For example, a capital “A” has the code 65, which the computer stores using zeros and ones. ASCII art uses those text characters, arranged with spaces and line breaks, to make pictures on the screen, from a face like (^_^) to some more detailed drawings.
 #
 I hope you like it <3
 
