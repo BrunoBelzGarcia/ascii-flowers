@@ -21,7 +21,7 @@
   button:active { background:#222; }
   button:disabled { color:#666; cursor:wait; }
   button:focus-visible { outline:2px solid #eed681; outline-offset:4px; }
-  .copy-note { margin:0; max-width:310px; padding:8px 12px; border:1px solid #383838; border-radius:3px; color:#c9c9c9; font-size:12px; }
+  .copy-note { margin:0; max-width:310px; color:#c9c9c9; font-size:12px; }
   #status { display:block; flex-basis:100%; text-align:center; min-height:19px; margin:0; color:#b8b8b8; font-size:12px; }
   .fallback { max-width:500px; margin:32px auto; padding:24px; }
   #copyFallback { display:none; width:min(600px,90vw); height:160px; background:#111; color:white; font:12px/1.2 monospace; border:1px solid #888; }
@@ -34,7 +34,7 @@
   <div class="art"><canvas id="bouquet" role="img" aria-label="A still ASCII bouquet: golden sunflowers with dark seed centers, purple asters, red lilies, white baby's breath, and leafy green stems on black.">A bouquet of sunflowers, purple asters, red lilies, and green foliage.</canvas></div>
   <footer aria-label="Copy the bouquet">
     <button id="copy" type="button" aria-describedby="copy-note">Copy ASCII text</button>
-    <p id="copy-note" class="copy-note">Copy the flowers, then paste them into Notepad.<br>Use a monospaced font to keep them aligned.</p>
+    <p id="copy-note" class="copy-note">Copy it and paste it into Notepad.</p>
     <textarea id="copyFallback" readonly aria-label="ASCII bouquet text. Select all and copy."></textarea>
     <p id="status" role="status" aria-live="polite">Trying to make up for the flowers you didn't get.</p>
   </footer>
