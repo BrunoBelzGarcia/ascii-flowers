@@ -73,7 +73,7 @@
 <div class="sky" id="sky" aria-hidden="true"></div>
 <main>
   <h1 class="greeting">Flowers for you</h1>
-  <div class="art"><canvas id="bouquet" role="img" aria-label="ASCII flowers">ASCII flowers.</canvas></div>
+  <div class="art"><canvas id="bouquet" role="img" aria-label="Wrapped ASCII bouquet with sunflowers, pink lilies, asters, daisies, and blue wildflowers">ASCII flowers.</canvas></div>
   <footer aria-label="Save flowers">
     <div class="actions">
       <button id="download" type="button"><span aria-hidden="true">↓</span>Download image</button>
@@ -136,7 +136,181 @@ function progress(value, start, duration) {
 function interpolate(from, to, t) {
   return [from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t];
 }
+const paperColors = ['#655848', '#a39277', '#c9b79b', '#e0cfb1', '#f0e1c5'];
+
+function shadeBetween(ctx, from, to, shades) {
+  const gradient = ctx.createLinearGradient(...from, ...to);
+  for (const [index, shade] of shades.entries()) {
+    gradient.addColorStop(index / (shades.length - 1), shade);
+  }
+  return gradient;
+}
+
+function drawBackPaper(ctx) {
+  const [shadow, fold, mid, light, edge] = paperColors;
+  ctx.save();
+  ctx.fillStyle = shadeBetween(ctx, [213, 499], [523, 879], [light, mid, fold, shadow]);
+  ctx.beginPath();
+  ctx.moveTo(190, 505);
+  ctx.quadraticCurveTo(297, 565, 447, 563);
+  ctx.lineTo(521, 896);
+  ctx.quadraticCurveTo(309, 794, 190, 505);
+  ctx.fill();
+  ctx.fillStyle = shadeBetween(ctx, [824, 490], [540, 897], [edge, mid, fold, shadow]);
+  ctx.beginPath();
+  ctx.moveTo(822, 519);
+  ctx.quadraticCurveTo(700, 550, 557, 584);
+  ctx.lineTo(483, 921);
+  ctx.quadraticCurveTo(710, 809, 822, 519);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawFrontPaper(ctx) {
+  const [shadow, fold, mid, light, edge] = paperColors;
+  ctx.save();
+
+  ctx.fillStyle = shadeBetween(ctx, [426, 964], [584, 1027], [fold, mid, light, fold]);
+  ctx.beginPath();
+  ctx.moveTo(467, 903);
+  ctx.quadraticCurveTo(506, 919, 541, 902);
+  ctx.quadraticCurveTo(539, 994, 590, 1062);
+  ctx.quadraticCurveTo(491, 1093, 416, 1054);
+  ctx.quadraticCurveTo(461, 988, 467, 903);
+  ctx.fill();
+
+  ctx.fillStyle = shadeBetween(ctx, [241, 632], [600, 944], [light, mid, fold]);
+  ctx.beginPath();
+  ctx.moveTo(197, 619);
+  ctx.quadraticCurveTo(299, 703, 429, 741);
+  ctx.quadraticCurveTo(508, 773, 577, 845);
+  ctx.lineTo(516, 942);
+  ctx.quadraticCurveTo(335, 896, 243, 734);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = edge;
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(197, 619);
+  ctx.quadraticCurveTo(299, 703, 429, 741);
+  ctx.stroke();
+
+  ctx.fillStyle = shadeBetween(ctx, [743, 600], [478, 916], [edge, light, mid, shadow]);
+  ctx.beginPath();
+  ctx.moveTo(817, 616);
+  ctx.quadraticCurveTo(753, 672, 667, 699);
+  ctx.quadraticCurveTo(593, 728, 539, 792);
+  ctx.quadraticCurveTo(487, 855, 477, 928);
+  ctx.quadraticCurveTo(634, 898, 734, 762);
+  ctx.quadraticCurveTo(792, 682, 817, 616);
+  ctx.fill();
+
+  ctx.strokeStyle = edge;
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(817, 616);
+  ctx.quadraticCurveTo(753, 672, 667, 699);
+  ctx.quadraticCurveTo(593, 728, 539, 792);
+  ctx.stroke();
+  ctx.strokeStyle = fold;
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(747, 705);
+  ctx.quadraticCurveTo(653, 808, 511, 899);
+  ctx.moveTo(292, 764);
+  ctx.quadraticCurveTo(361, 847, 471, 889);
+  ctx.moveTo(529, 954);
+  ctx.quadraticCurveTo(532, 1009, 550, 1049);
+  ctx.stroke();
+
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = '#8c572f';
+  ctx.lineWidth = 12;
+  ctx.beginPath();
+  ctx.moveTo(459, 923);
+  ctx.quadraticCurveTo(504, 944, 550, 919);
+  ctx.stroke();
+  ctx.strokeStyle = '#e0b477';
+  ctx.lineWidth = 10;
+  ctx.beginPath();
+  ctx.moveTo(503, 934);
+  ctx.bezierCurveTo(464, 903, 393, 873, 415, 904);
+  ctx.bezierCurveTo(431, 925, 466, 940, 503, 934);
+  ctx.bezierCurveTo(537, 913, 612, 870, 595, 903);
+  ctx.bezierCurveTo(583, 929, 540, 941, 503, 934);
+  ctx.bezierCurveTo(472, 955, 452, 980, 458, 1007);
+  ctx.moveTo(503, 934);
+  ctx.bezierCurveTo(534, 961, 551, 976, 559, 1005);
+  ctx.stroke();
+  ctx.fillStyle = '#a6713d';
+  ctx.beginPath();
+  ctx.ellipse(503, 934, 12, 8, -.26, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawWildflowers(ctx, time) {
+  const daisies = [[344,179,41,-.25,4940],[507,400,43,.21,5200],[744,326,37,.29,5060]];
+  for (const [x, y, radius, tilt, opensAt] of daisies) {
+    const open = progress(time, opensAt, 940);
+    if (open === 0) continue;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(tilt + (1 - open) * .22);
+    ctx.scale(open, open * .82);
+    for (let petal = 0; petal < 11; petal++) {
+      ctx.save();
+      ctx.rotate(petal * Math.PI * 2 / 11);
+      const length = radius * (.91 + .09 * Math.cos(petal * 2));
+      ctx.fillStyle = shadeBetween(ctx, [0, -length], [0, 0], ['#fff5d7','#e8ddc2','#a49b76']);
+      ctx.beginPath();
+      ctx.ellipse(0, -length * .62, radius * .175, length * .39, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.fillStyle = '#b68937';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, radius * .26, radius * .23, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#e8bd59';
+    ctx.beginPath();
+    ctx.arc(-radius * .07, -radius * .04, radius * .145, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+  const offsets = [[-20,-8],[-4,-24],[17,-10],[-12,11],[9,9],[24,15]];
+  for (const [x, y, opensAt] of [[246,323,4680],[778,481,4880],[340,607,5140]]) {
+    for (const [i, [dx, dy]] of offsets.entries()) {
+      const start = opensAt + i * 58;
+      const growth = progress(time, start - 510, 510);
+      if (growth > 0) {
+        ctx.strokeStyle = '#5e8050';
+        ctx.lineWidth = 2.7;
+        ctx.beginPath();
+        ctx.moveTo(x, y + 37);
+        ctx.quadraticCurveTo(x, y + 37 - 30 * growth, x + dx * growth, y + 37 + (dy - 37) * growth);
+        ctx.stroke();
+      }
+      const open = progress(time, start, 670);
+      if (open === 0) continue;
+      const radius = (10 + i % 3) * open;
+      ctx.fillStyle = i % 2 ? '#b7d8e9' : '#84b5cf';
+      for (let petal = 0; petal < 5; petal++) {
+        const angle = petal * Math.PI * 2 / 5;
+        ctx.beginPath();
+        ctx.arc(x + dx + Math.cos(angle) * radius * .51, y + dy + Math.sin(angle) * radius * .51, radius * .44, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = '#e6c879';
+      ctx.beginPath();
+      ctx.arc(x + dx, y + dy, radius * .22, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
 function drawScene(ctx, time) {
+  drawBackPaper(ctx);
   const random=rng(245), range=(a,b)=>a+random()*(b-a);
   const curve=(tip,t)=> { const u=1-t;return [u*u*u*500+3*u*u*t*500+3*u*t*t*(500+(tip[0]-500)*.7)+t*t*t*tip[0],u*u*u*1050+3*u*u*t*830+3*u*t*t*(tip[1]+200)+t*t*t*tip[1]]; };
   function stem(tip, growth, color = '#497c29', width = 4) {
@@ -309,17 +483,17 @@ function drawScene(ctx, time) {
     }
   }
   const flowers = [
-    ['white', 270, 225, 65, -.2, 4250],
-    ['purple', 735, 235, 73, .3, 4550],
-    ['lily', 180, 460, 90, -.3, 3430],
-    ['lily', 825, 465, 86, .3, 3690],
-    ['sun', 500, 220, 132, -.1, 2350],
-    ['sun', 340, 415, 107, -.2, 2810],
-    ['sun', 665, 420, 108, .2, 3090],
-    ['purple', 230, 605, 68, -.3, 4780],
-    ['purple', 470, 530, 73, .15, 4060],
-    ['white', 760, 605, 72, .3, 4650],
-    ['purple', 595, 630, 56, .1, 4260],
+    ['white', 315, 254, 65, -.2, 4250],
+    ['purple', 683, 257, 73, .3, 4550],
+    ['lily', 198, 405, 90, -.3, 3430],
+    ['lily', 804, 414, 86, .3, 3690],
+    ['sun', 500, 233, 132, -.1, 2350],
+    ['sun', 357, 398, 107, -.2, 2810],
+    ['sun', 647, 401, 108, .2, 3090],
+    ['purple', 266, 542, 68, -.3, 4780],
+    ['purple', 478, 508, 73, .15, 4060],
+    ['white', 729, 543, 72, .3, 4650],
+    ['purple', 587, 554, 56, .1, 4260],
   ];
   for (const [, x, y, , , opensAt] of flowers) {
     const tip = [x, y];
@@ -345,6 +519,9 @@ function drawScene(ctx, time) {
     }
     ctx.restore();
   }
+
+  drawFrontPaper(ctx);
+  drawWildflowers(ctx, time);
 
   const budColors = { sun: '#aa822e', lily: '#b32b54', purple: '#7959a8', white: '#9f9e76' };
   for (const [kind, x, y, radius, angle, opensAt] of flowers) {
