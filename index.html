@@ -165,28 +165,42 @@ function drawScene(ctx, time) {
       width *= growth;
     }
     const dx=tip[0]-root[0],dy=tip[1]-root[1],len=Math.hypot(dx,dy),nx=-dy/len*width,ny=dx/len*width;
-    const grad=ctx.createLinearGradient(...root,...tip);grad.addColorStop(0,'#254b1c');grad.addColorStop(1,bright?'#8baa42':'#537e2d');
+    const grad=ctx.createLinearGradient(root[0]-nx*.42,root[1]-ny*.42,tip[0]+nx*.64,tip[1]+ny*.64);
+    grad.addColorStop(0,'#244a22');grad.addColorStop(.46,bright?'#668b35':'#3e6428');grad.addColorStop(1,bright?'#bacd64':'#729c43');
     ctx.fillStyle=grad;ctx.beginPath();ctx.moveTo(...root);
     ctx.bezierCurveTo(root[0]+dx*.28+nx,root[1]+dy*.28+ny,root[0]+dx*.75+nx,root[1]+dy*.75+ny,...tip);
     ctx.bezierCurveTo(root[0]+dx*.67-nx,root[1]+dy*.67-ny,root[0]+dx*.2-nx,root[1]+dy*.2-ny,...root);ctx.fill();
-    ctx.strokeStyle='#809c40';ctx.lineWidth=1.7;ctx.beginPath();ctx.moveTo(...root);ctx.lineTo(...tip);ctx.stroke();
+    const vein = interpolate(root, tip, .85);
+    ctx.strokeStyle = bright ? '#a9c85b' : '#7d9f47';
+    ctx.lineWidth = Math.min(2.7, width * .24);
+    ctx.beginPath();
+    ctx.moveTo(...root);
+    ctx.quadraticCurveTo(root[0] + dx * .4 - nx * .13, root[1] + dy * .4 - ny * .13, ...vein);
+    for (const t of [.36, .58]) {
+      const [x, y] = interpolate(root, tip, t);
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + dx * .14 + nx * .52, y + dy * .14 + ny * .52);
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + dx * .14 - nx * .42, y + dy * .14 - ny * .42);
+    }
+    ctx.stroke();
   }
   function lily(x,y,size,rotation) {
     ctx.save();ctx.translate(x,y);ctx.rotate(rotation);ctx.scale(1,.88);
-    const freckles = [[-.42,.37,.036],[.32,.42,.035],[-.48,.52,.031],[.39,.57,.03],[-.26,.65,.026],[.21,.71,.022]];
+    const freckles = [[-.46,.31,.057],[.41,.37,.049],[-.52,.49,.048],[.48,.55,.041],[-.35,.64,.035],[.31,.72,.026]];
     for(let layer=0;layer<2;layer++)for(let p=0;p<3;p++) {
       ctx.save();ctx.rotate(p*Math.PI*2/3+layer*Math.PI/3);
       const length=size*(layer?.86:1),w=size*(layer?.24:.31);
-      const grad=ctx.createLinearGradient(-w,-length,w,8);grad.addColorStop(0,'#ff8097');grad.addColorStop(.32,'#ef416e');grad.addColorStop(.68,'#ce2054');grad.addColorStop(1,'#821034');
-      ctx.fillStyle=grad;ctx.strokeStyle='#ec7d93';ctx.lineWidth=2;
+      const grad=ctx.createLinearGradient(-w,-length,w,8);grad.addColorStop(0,'#ffc1cc');grad.addColorStop(.28,layer?'#ee678e':'#ff8ead');grad.addColorStop(.62,'#dc316a');grad.addColorStop(1,'#6b0b36');
+      ctx.fillStyle=grad;ctx.strokeStyle=layer?'#cc406f':'#f98ca8';ctx.lineWidth=2.6;
       ctx.beginPath();ctx.moveTo(0,8);ctx.bezierCurveTo(-w*.9,-length*.2,-w*1.25,-length*.86,6,-length);ctx.bezierCurveTo(w*.5,-length*1.08,w*1.35,-length*.3,0,8);ctx.fill();ctx.stroke();
-      ctx.strokeStyle = layer ? '#e8527c' : '#f77998';
-      ctx.lineWidth = size * .026;
+      ctx.strokeStyle = layer ? '#eb7798' : '#ffadc1';
+      ctx.lineWidth = size * .045;
       ctx.beginPath();
       ctx.moveTo(0, -length * .21);
       ctx.quadraticCurveTo(-w * .14, -length * .56, 3, -length * .84);
       ctx.stroke();
-      ctx.fillStyle = '#76123b';
+      ctx.fillStyle = '#80103f';
       for (const [offset, depth, radius] of freckles) {
         ctx.beginPath();
         ctx.ellipse(w * offset, -length * depth, size * radius * .72, size * radius, offset, 0, Math.PI * 2);
@@ -198,13 +212,13 @@ function drawScene(ctx, time) {
       const angle = i * Math.PI / 3;
       const tipX = Math.cos(angle) * size * .32;
       const tipY = Math.sin(angle) * size * .27 - 8;
-      ctx.strokeStyle = '#efd08d';
-      ctx.lineWidth = size * .032;
+      ctx.strokeStyle = '#ffe1a0';
+      ctx.lineWidth = size * .043;
       ctx.beginPath();
       ctx.moveTo(0, 1);
       ctx.quadraticCurveTo(tipX * .48, tipY * .62 + 4, tipX, tipY);
       ctx.stroke();
-      ctx.fillStyle = '#a85734';
+      ctx.fillStyle = '#b26337';
       ctx.beginPath();
       ctx.ellipse(tipX, tipY, size * .067, size * .034, angle, 0, Math.PI * 2);
       ctx.fill();
@@ -217,51 +231,69 @@ function drawScene(ctx, time) {
     for(let ring=0;ring<2;ring++)for(let n=0;n<26;n++) {
       ctx.save();ctx.rotate(n*Math.PI*2/26+ring*.12);
       const tip=r*(ring?.91:1)*range(.94,1.04),w=r*(ring?.11:.125),base=r*.27;
-      const grad=ctx.createLinearGradient(0,-tip,0,-base);grad.addColorStop(0,ring?'#ffe38a':'#f3c637');grad.addColorStop(.29,ring?'#fbd066':'#ecb523');grad.addColorStop(.65,ring?'#ecc044':'#d59719');grad.addColorStop(1,'#a96113');
+      const grad=ctx.createLinearGradient(-w*.65,-tip,w*.75,-base);
+      grad.addColorStop(0,ring?'#fff0aa':'#ffd650');grad.addColorStop(.28,ring?'#ffda68':'#efb628');grad.addColorStop(.64,ring?'#df9c29':'#ca801a');grad.addColorStop(1,'#9e5516');
       ctx.fillStyle=grad;ctx.beginPath();ctx.moveTo(0,-base);
       ctx.bezierCurveTo(-w*1.3,-r*.55,-w,-tip*.88,range(-3,3),-tip);ctx.bezierCurveTo(w,-tip*.88,w*1.3,-r*.55,0,-base);ctx.fill();
-      ctx.strokeStyle=ring?'#ffe49c':'#f6c34a';ctx.lineWidth=r*.022;ctx.beginPath();ctx.moveTo(0,-r*.48);ctx.quadraticCurveTo(w*.28,-tip*.73,0,-tip*.91);ctx.stroke();ctx.restore();
+      ctx.strokeStyle=ring?'#ffe794':'#ffd060';ctx.lineWidth=r*.032;ctx.beginPath();ctx.moveTo(-w*.16,-r*.49);ctx.quadraticCurveTo(-w*.42,-tip*.73,0,-tip*.92);ctx.stroke();ctx.restore();
     }
     const disk = r * .43;
     const center = ctx.createRadialGradient(-disk * .16, -disk * .19, 1, 0, 0, disk);
-    center.addColorStop(0, '#4d3222');
-    center.addColorStop(.54, '#65422b');
-    center.addColorStop(.86, '#865a31');
-    center.addColorStop(1, '#ac793b');
+    center.addColorStop(0, '#53331e');
+    center.addColorStop(.5, '#674324');
+    center.addColorStop(.78, '#915d2b');
+    center.addColorStop(1, '#b88338');
     ctx.fillStyle = center;
     ctx.beginPath();
     ctx.arc(0, 0, disk, 0, Math.PI * 2);
     ctx.fill();
-    const seedCount = 144;
+    ctx.strokeStyle = '#d6a049';
+    ctx.lineWidth = r * .023;
+    ctx.beginPath();
+    ctx.arc(0, 0, disk - ctx.lineWidth / 2, 0, Math.PI * 2);
+    ctx.stroke();
+    const seedCount = 132;
     for (let n = 0; n < seedCount; n++) {
       const angle = n * 2.39996323;
-      const distance = Math.sqrt(n / seedCount) * disk * .92;
-      ctx.fillStyle = n % 7 === 0 ? '#e4bc6b' : n % 3 === 0 ? '#c09251' : '#a67641';
+      const distance = Math.sqrt(n / seedCount) * disk * .86;
+      ctx.fillStyle = n % 8 < 2 ? '#e6bb68' : n % 5 === 0 ? '#9c6733' : '#bd8847';
       ctx.beginPath();
-      ctx.ellipse(Math.cos(angle) * distance, Math.sin(angle) * distance, r * .024, r * .015, angle + .55, 0, Math.PI * 2);
+      ctx.ellipse(Math.cos(angle) * distance, Math.sin(angle) * distance, r * .029, r * .018, angle + .55, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.restore();
   }
   function aster(x,y,r,rotation,white=false) {
     ctx.save();ctx.translate(x,y);ctx.rotate(rotation);ctx.scale(1,.85);
-    const tips = white ? ['#fffdf5','#eeeee7','#ffffff'] : ['#d2b1ff','#b88af5','#edccff'];
-    const shadows = white ? ['#bdc4b4','#d3d7cb','#e8e8df'] : ['#8050bb','#9b66d8','#c28aeb'];
+    const tips = white ? ['#fffdf5','#f2f0e9','#ffffff'] : ['#d9baff','#d2a6ff','#f1d9ff'];
+    const shadows = white ? ['#adb6a7','#bec6b9','#d2d8c8'] : ['#7949b0','#945ecb','#b978e0'];
     for(let ring=0;ring<3;ring++)for(let n=0;n<22;n++) {
       ctx.save();ctx.rotate(n*Math.PI*2/22+ring*.14);
       const tip=r*(1-ring*.16)*range(.94,1.05),w=r*.075;
-      const grad=ctx.createLinearGradient(0,-tip,0,0);grad.addColorStop(0,tips[ring]);grad.addColorStop(.47,shadows[ring]);grad.addColorStop(1,white?'#a6ad9a':'#5b2687');
-      ctx.fillStyle=grad;ctx.beginPath();ctx.moveTo(0,0);ctx.bezierCurveTo(-w*1.6,-tip*.45,-w,-tip,0,-tip);ctx.bezierCurveTo(w,-tip,w*1.6,-tip*.45,0,0);ctx.fill();ctx.restore();
+      const grad=ctx.createLinearGradient(-w,-tip,w,0);grad.addColorStop(0,tips[ring]);grad.addColorStop(.33,n%3===0?tips[ring]:shadows[ring]);grad.addColorStop(1,white?'#879384':'#4f277c');
+      ctx.fillStyle=grad;ctx.beginPath();ctx.moveTo(0,0);ctx.bezierCurveTo(-w*1.6,-tip*.45,-w,-tip,0,-tip);ctx.bezierCurveTo(w,-tip,w*1.6,-tip*.45,0,0);ctx.fill();
+      ctx.strokeStyle = tips[ring];
+      ctx.lineWidth = r * .032;
+      ctx.beginPath();
+      ctx.moveTo(-w * .22, -tip * .45);
+      ctx.quadraticCurveTo(-w * .42, -tip * .72, 0, -tip * .93);
+      ctx.stroke();
+      ctx.restore();
     }
-    const center = ctx.createRadialGradient(-r * .04, -r * .05, 0, 0, 0, r * .17);
-    center.addColorStop(0, '#f6d779');
-    center.addColorStop(.62, '#d9ad4e');
-    center.addColorStop(1, '#9a6b2d');
+    const center = ctx.createRadialGradient(-r * .04, -r * .05, 0, 0, 0, r * .2);
+    center.addColorStop(0, '#ffe399');
+    center.addColorStop(.6, '#dfb144');
+    center.addColorStop(1, '#855722');
     ctx.fillStyle = center;
     ctx.beginPath();
-    ctx.arc(0, 0, r * .17, 0, Math.PI * 2);
+    ctx.arc(0, 0, r * .2, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle='#f7d975';for(let n=0;n<18;n++) { const a=n*2.3999,d=Math.sqrt(n/18)*r*.15;ctx.fillRect(Math.cos(a)*d,Math.sin(a)*d,r*.038,r*.038); }
+    for (let n = 0; n < 21; n++) {
+      const angle = n * 2.39996323;
+      const distance = Math.sqrt(n / 21) * r * .158;
+      ctx.fillStyle = n % 3 === 0 ? '#fff0a8' : '#ca9133';
+      ctx.fillRect(Math.cos(angle) * distance, Math.sin(angle) * distance, r * .048, r * .048);
+    }
     ctx.restore();
   }
   const sprigs=[[155,450],[235,250],[355,155],[595,150],[765,260],[850,470],[190,650],[810,670]];
@@ -365,11 +397,12 @@ function createBouquet(cols, time = BLOOM_DURATION) {
 }
 function render() {
   const { width, height } = canvas.getBoundingClientRect();
-  const scale = Math.min((width - 20) / 1000, (height - 16) / 1100);
+  // Crop some of the drawing's empty side margins on narrow screens.
+  const scale = Math.min((width - 12) / 900, (height - 16) / 1100);
   if (scale <= 0) return;
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   if (layout?.width === width && layout.height === height && layout.dpr === dpr) return;
-  const cols = Math.max(96, Math.min(200, Math.round(scale * 1000 / 4.8)));
+  const cols = Math.max(108, Math.min(220, Math.round(scale * 1000 / 4.1)));
   if (layout?.cols !== cols) fullBouquet = createBouquet(cols);
   layout = { width, height, scale, dpr, cols };
   canvas.width = Math.round(width * dpr);
