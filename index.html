@@ -11,23 +11,27 @@
 <title>ascii flowers</title>
 <style>
   * { box-sizing: border-box; }
-  html,body { margin:0; width:100%; min-height:100%; background:#000; color:#ddd; font:13px/1.4 system-ui,sans-serif; }
-  main { height:100vh; height:100svh; display:flex; flex-direction:column; }
-  .greeting { flex:none; margin:0; padding:max(24px,env(safe-area-inset-top)) 20px 8px; color:#e8dec5; text-align:center; font-size:clamp(15px,2.2vw,20px); font-weight:400; line-height:1.5; }
+  html,body { margin:0; min-height:100%; background:#000; color:#e8e2d5; font:14px/1.4 system-ui,sans-serif; }
+  main { width:min(100%,48rem); height:100vh; height:100svh; min-height:26rem; margin-inline:auto; display:flex; flex-direction:column; }
+  .greeting { flex:none; margin:0; padding:max(28px,env(safe-area-inset-top)) 12px 0; color:#f1e4c9; text-align:center; font:400 clamp(32px,6vw,54px)/1.05 Georgia,serif; letter-spacing:-.035em; }
   .art { flex:1; min-height:0; position:relative; }
   canvas { display:block; width:100%; height:100%; }
-  footer { flex:none; display:flex; justify-content:center; align-items:center; flex-wrap:wrap; gap:8px 20px; padding:8px 16px max(10px,env(safe-area-inset-bottom)); }
-  button { font:inherit; color:#bbb; border:1px solid #383838; background:#080808; padding:8px 14px; min-height:40px; cursor:pointer; border-radius:3px; }
-  button:hover { color:#fff; border-color:#888; }
-  button:active { background:#222; }
-  button:disabled { color:#666; cursor:wait; }
-  button:focus-visible { outline:2px solid #eed681; outline-offset:4px; }
-  .copy-note { margin:0; max-width:310px; color:#c9c9c9; font-size:12px; }
-  #status { display:block; flex-basis:100%; text-align:center; min-height:19px; margin:0; color:#b8b8b8; font-size:12px; }
+  footer { flex:none; display:grid; justify-items:center; padding:2px 12px max(12px,env(safe-area-inset-bottom)); }
+  .actions { display:flex; justify-content:center; flex-wrap:wrap; gap:8px; }
+  button { font:inherit; color:inherit; border:1px solid #514b3c; background:transparent; padding:8px 13px; min-height:44px; cursor:pointer; border-radius:5px; }
+  button:hover { color:#fff; border-color:#a99b78; }
+  button:disabled { opacity:.55; cursor:default; }
+  button:focus-visible { outline:2px solid #e8d39b; outline-offset:3px; }
+  #download { background:#e8d39b; color:#181406; font-weight:600; }
+  #download:hover { background:#f6e4b2; }
+  #download span { margin-inline-end:6px; }
+  #replay { border-color:transparent; color:#c5baa3; font-size:13px; }
+  #replay:hover { color:#f1e4c9; text-decoration:underline; }
+  #status { text-align:center; min-height:17px; margin:0; color:#c5baa3; font-size:12px; }
   .fallback { max-width:500px; margin:32px auto; padding:24px; }
   #copyFallback { display:none; width:min(600px,90vw); height:160px; background:#111; color:white; font:12px/1.2 monospace; border:1px solid #888; }
   #copyFallback:focus { outline:2px solid #eed681; }
-  @media(max-height:500px) { footer { padding:4px 12px;gap:4px 16px; } button { min-height:32px;padding:4px 12px; } }
+  @media(max-height:500px) { .greeting { padding-top:max(14px,env(safe-area-inset-top)); font-size:32px; } }
 </style>
 </head>
 <body>
@@ -35,9 +39,11 @@
   <h1 class="greeting">Flowers for you</h1>
   <div class="art"><canvas id="bouquet" role="img" aria-label="ASCII flowers">ASCII flowers.</canvas></div>
   <footer aria-label="Save flowers">
-    <button id="copy" type="button" aria-describedby="copy-note">Copy ASCII text</button>
-    <button id="download" type="button">Download PNG</button>
-    <p id="copy-note" class="copy-note">Copy it and paste it into Notepad.</p>
+    <div class="actions">
+      <button id="download" type="button"><span aria-hidden="true">↓</span>Download image</button>
+      <button id="copy" type="button">Copy ASCII text</button>
+    </div>
+    <button id="replay" type="button">Replay bloom</button>
     <textarea id="copyFallback" readonly aria-label="Flower text. Select all and copy."></textarea>
     <p id="status" role="status" aria-live="polite"></p>
   </footer>
@@ -48,15 +54,52 @@
 // Reference: https://github.com/Isaac-opz/asciiFlowers
 const canvas=document.getElementById('bouquet');
 const status=document.getElementById('status');
+const copyButton = document.getElementById('copy');
 const downloadButton = document.getElementById('download');
+const replayButton = document.getElementById('replay');
+const BLOOM_DURATION = 6200;
+const BLOOM_FRAME_INTERVAL = 1000 / 24;
 const ramp=' .:-=+*cxoaX#%&@';
-let asciiText='';
+let layout;
+let fullBouquet;
+let bloomStart = null;
+let animationFrame = 0;
 function rng(seed) { return () => { seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296; }; }
-function drawScene(ctx) {
+function progress(value, start, duration) {
+  const t = Math.max(0, Math.min(1, (value - start) / duration));
+  return t * t * (3 - 2 * t);
+}
+function interpolate(from, to, t) {
+  return [from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t];
+}
+function drawScene(ctx, time) {
   const random=rng(245), range=(a,b)=>a+random()*(b-a);
   const curve=(tip,t)=> { const u=1-t;return [u*u*u*500+3*u*u*t*500+3*u*t*t*(500+(tip[0]-500)*.7)+t*t*t*tip[0],u*u*u*1050+3*u*u*t*830+3*u*t*t*(tip[1]+200)+t*t*t*tip[1]]; };
-  const stem=(tip,color='#497c29',width=4)=> { ctx.strokeStyle=color;ctx.lineWidth=width;ctx.beginPath();ctx.moveTo(500,1050);ctx.bezierCurveTo(500,830,500+(tip[0]-500)*.7,tip[1]+200,...tip);ctx.stroke(); };
-  function leaf(root,tip,width,bright) {
+  function stem(tip, growth, color = '#497c29', width = 4) {
+    if (growth <= 0) return;
+    const root = [500, 1050];
+    const first = [500, 830];
+    const second = [500 + (tip[0] - 500) * .7, tip[1] + 200];
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.beginPath();
+    ctx.moveTo(...root);
+    if (growth < 1) {
+      // Split the curve at the growing tip so its shape stays fixed.
+      const early = interpolate(root, first, growth);
+      const middle = interpolate(first, second, growth);
+      ctx.bezierCurveTo(...early, ...interpolate(early, middle, growth), ...curve(tip, growth));
+    } else {
+      ctx.bezierCurveTo(...first, ...second, ...tip);
+    }
+    ctx.stroke();
+  }
+  function leaf(root,tip,width,bright,growth) {
+    if (growth <= 0) return;
+    if (growth < 1) {
+      tip = interpolate(root, tip, growth);
+      width *= growth;
+    }
     const dx=tip[0]-root[0],dy=tip[1]-root[1],len=Math.hypot(dx,dy),nx=-dy/len*width,ny=dx/len*width;
     const grad=ctx.createLinearGradient(...root,...tip);grad.addColorStop(0,'#254b1c');grad.addColorStop(1,bright?'#8baa42':'#537e2d');
     ctx.fillStyle=grad;ctx.beginPath();ctx.moveTo(...root);
@@ -109,21 +152,93 @@ function drawScene(ctx) {
     ctx.fillStyle='#f7d975';for(let n=0;n<18;n++) { const a=n*2.3999,d=Math.sqrt(n/18)*r*.15;ctx.fillRect(Math.cos(a)*d,Math.sin(a)*d,2.5,2.5); }
     ctx.restore();
   }
-  // Draw the stems and flowers.
   const sprigs=[[155,450],[235,250],[355,155],[595,150],[765,260],[850,470],[190,650],[810,670]];
-  for(const tip of sprigs) { stem(tip,'#355b23',3);for(let n=0;n<12;n++) { const b=curve(tip,.24+n*.063),side=n%2?1:-1;leaf(b,[b[0]+side*range(28,55),b[1]-range(24,45)],range(9,16),n%3===0); } }
-  const flowers=[['white',270,225,65,-.2],['purple',735,235,73,.3],['lily',180,460,90,-.3],['lily',825,465,86,.3],['sun',500,220,132,-.1],['sun',340,415,107,-.2],['sun',665,420,108,.2],['purple',230,605,68,-.3],['purple',470,530,73,.15],['white',760,605,72,.3],['purple',595,630,56,.1]];
-  for(const [,x,y] of flowers) { const tip=[x,y];stem(tip);for(let n=0;n<8;n++) { const b=curve(tip,.2+n*.075),side=n%2?-1:1;leaf(b,[b[0]+side*range(58,95),b[1]-range(15,65)],range(8,17),n%2===0); } }
+  for (const [index, tip] of sprigs.entries()) {
+    const growth = progress(time, 120 + index * 70, 2080);
+    stem(tip, growth, '#355b23', 3);
+    for (let n = 0; n < 12; n++) {
+      const position = .24 + n * .063;
+      const root = curve(tip, position);
+      const side = n % 2 ? 1 : -1;
+      const size = progress(growth, position, Math.min(.12, 1 - position));
+      leaf(root, [root[0] + side * range(28,55), root[1] - range(24,45)], range(9,16), n % 3 === 0, size);
+    }
+  }
+  const flowers = [
+    ['white', 270, 225, 65, -.2, 4250],
+    ['purple', 735, 235, 73, .3, 4550],
+    ['lily', 180, 460, 90, -.3, 3430],
+    ['lily', 825, 465, 86, .3, 3690],
+    ['sun', 500, 220, 132, -.1, 2350],
+    ['sun', 340, 415, 107, -.2, 2810],
+    ['sun', 665, 420, 108, .2, 3090],
+    ['purple', 230, 605, 68, -.3, 4780],
+    ['purple', 470, 530, 73, .15, 4060],
+    ['white', 760, 605, 72, .3, 4650],
+    ['purple', 595, 630, 56, .1, 4260],
+  ];
+  for (const [, x, y, , , opensAt] of flowers) {
+    const tip = [x, y];
+    const start = opensAt * .14;
+    const growth = progress(time, start, opensAt - start - 520);
+    stem(tip, growth);
+    for (let n = 0; n < 8; n++) {
+      const position = .2 + n * .075;
+      const root = curve(tip, position);
+      const side = n % 2 ? -1 : 1;
+      const size = progress(growth, position, .15);
+      leaf(root, [root[0] + side * range(58,95), root[1] - range(15,65)], range(8,17), n % 2 === 0, size);
+    }
+  }
   const clouds=[[355,245],[650,205],[220,350],[785,350],[425,360],[580,360],[315,560],[650,565],[405,650],[565,740]];
-  for(const cloud of clouds) { stem(cloud,'#395a2e',1.6);for(let n=0;n<19;n++) { const a=range(0,Math.PI*2),r=range(4,33),x=cloud[0]+Math.cos(a)*r,y=cloud[1]+Math.sin(a)*r*.7;
-    ctx.strokeStyle='#778263';ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(...cloud);ctx.lineTo(x,y);ctx.stroke();ctx.fillStyle='#f6f2df';ctx.beginPath();ctx.arc(x,y,range(3.3,5.7),0,Math.PI*2);ctx.fill(); } }
-  for(const [kind,x,y,r,angle] of flowers) { if(kind==='sun')sunflower(x,y,r,angle);else if(kind==='purple'||kind==='white')aster(x,y,r,angle,kind==='white');else lily(x,y,r,angle); }
+  for (const [index, cloud] of clouds.entries()) {
+    const start = 680 + index * 85;
+    stem(cloud, progress(time, start, 1900), '#395a2e', 1.6);
+    ctx.save();
+    ctx.globalAlpha = progress(time, start + 1850, 900);
+    for(let n=0;n<19;n++) { const a=range(0,Math.PI*2),r=range(4,33),x=cloud[0]+Math.cos(a)*r,y=cloud[1]+Math.sin(a)*r*.7;
+      ctx.strokeStyle='#778263';ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(...cloud);ctx.lineTo(x,y);ctx.stroke();ctx.fillStyle='#f6f2df';ctx.beginPath();ctx.arc(x,y,range(3.3,5.7),0,Math.PI*2);ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  const budColors = { sun: '#aa822e', lily: '#b32b54', purple: '#7959a8', white: '#9f9e76' };
+  for (const [kind, x, y, radius, angle, opensAt] of flowers) {
+    const open = progress(time, opensAt, 1280);
+    const bud = progress(time, opensAt - 520, 520);
+    const budOpacity = bud * (1 - progress(time, opensAt + 100, 470));
+    if (budOpacity > 0) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      ctx.globalAlpha = budOpacity;
+      ctx.fillStyle = budColors[kind];
+      ctx.beginPath();
+      ctx.ellipse(0, -radius * .09 * bud, radius * .11 * bud, radius * .18 * bud, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Draw in the same order every frame to keep the seeded petal shapes stable.
+    ctx.save();
+    if (open < 1) {
+      ctx.translate(x, y);
+      ctx.rotate((1 - open) * .45);
+      ctx.scale(.12 + .88 * open, .26 + .74 * open);
+      ctx.translate(-x, -y);
+      ctx.globalAlpha = progress(time, opensAt, 380);
+    }
+    if (kind === 'sun') sunflower(x, y, radius, angle);
+    else if (kind === 'lily') lily(x, y, radius, angle);
+    else aster(x, y, radius, angle, kind === 'white');
+    ctx.restore();
+  }
 }
-function createBouquet(cols) {
+function createBouquet(cols, time = BLOOM_DURATION) {
   const rows = Math.round(cols * 1100 / 1000 * 6 / 9);
   const scene=document.createElement('canvas');scene.width=cols;scene.height=rows;
   const s=scene.getContext('2d',{willReadFrequently:true});if(!s)throw Error('Your browser could not create the drawing canvas.');
-  s.fillStyle='#000';s.fillRect(0,0,cols,rows);s.scale(cols/1000,rows/1100);drawScene(s);
+  s.fillStyle='#000';s.fillRect(0,0,cols,rows);s.scale(cols/1000,rows/1100);drawScene(s,time);
   const pixels=s.getImageData(0,0,cols,rows).data;
   const art=document.createElement('canvas');art.width=cols*6;art.height=rows*9;
   const a=art.getContext('2d');a.fillStyle='#000';a.fillRect(0,0,art.width,art.height);
@@ -137,22 +252,88 @@ function createBouquet(cols) {
   return { art, text: lines.join('\n') + '\n' };
 }
 function render() {
-  const rect=canvas.getBoundingClientRect(),scale=Math.min((rect.width-20)/1000,(rect.height-16)/1100);
-  if(scale<=0)return;
-  const cols=Math.max(96,Math.min(200,Math.round(scale*1000/4.8)));
-  const { art, text } = createBouquet(cols);
-  asciiText = text;
-  const dpr=Math.min(window.devicePixelRatio||1,2);canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);
-  const c=canvas.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#000';c.fillRect(0,0,rect.width,rect.height);
-  const w=scale*1000,h=scale*1100;c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.drawImage(art,(rect.width-w)/2,(rect.height-h)/2,w,h);
+  const { width, height } = canvas.getBoundingClientRect();
+  const scale = Math.min((width - 20) / 1000, (height - 16) / 1100);
+  if (scale <= 0) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  if (layout?.width === width && layout.height === height && layout.dpr === dpr) return;
+  const cols = Math.max(96, Math.min(200, Math.round(scale * 1000 / 4.8)));
+  if (layout?.cols !== cols) fullBouquet = createBouquet(cols);
+  layout = { width, height, scale, dpr, cols };
+  canvas.width = Math.round(width * dpr);
+  canvas.height = Math.round(height * dpr);
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.imageSmoothingQuality = 'high';
+  paintFrame(bloomStart === null ? BLOOM_DURATION : performance.now() - bloomStart);
 }
-function fail(error) { status.textContent='The bouquet could not be drawn. Please reload or try another browser.';document.getElementById('copy').disabled=true;downloadButton.disabled=true;console.error(error); }
-try { render();new ResizeObserver(()=>{try{render();}catch(error){fail(error);}}).observe(document.querySelector('.art')); } catch(error){fail(error);}
-document.getElementById('copy').addEventListener('click',async()=> {
-  const button=document.getElementById('copy'),fallback=document.getElementById('copyFallback');button.disabled=true;
-  try { await navigator.clipboard.writeText(asciiText);fallback.style.display='none';status.textContent=''; }
-  catch { fallback.style.display='block';fallback.value=asciiText;fallback.focus();fallback.select();status.textContent='Clipboard unavailable. Copy the selected text manually.'; }
-  finally { button.disabled=false; }
+function paintFrame(time) {
+  const { width, height, scale, cols } = layout;
+  const { art } = time >= BLOOM_DURATION ? fullBouquet : createBouquet(cols, time);
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, width, height);
+  const artWidth = scale * 1000;
+  const artHeight = scale * 1100;
+  ctx.drawImage(art, (width - artWidth) / 2, (height - artHeight) / 2, artWidth, artHeight);
+}
+function playBloom() {
+  if (!layout) return;
+  cancelAnimationFrame(animationFrame);
+  bloomStart = performance.now();
+  let lastPaint = -Infinity;
+
+  function tick(now) {
+    const elapsed = now - bloomStart;
+    try {
+      if (elapsed >= BLOOM_DURATION) {
+        paintFrame(BLOOM_DURATION);
+        bloomStart = null;
+        animationFrame = 0;
+        return;
+      }
+      if (now - lastPaint >= BLOOM_FRAME_INTERVAL) {
+        paintFrame(elapsed);
+        lastPaint = now;
+      }
+      animationFrame = requestAnimationFrame(tick);
+    } catch (error) {
+      fail(error);
+    }
+  }
+
+  paintFrame(0);
+  animationFrame = requestAnimationFrame(tick);
+}
+function fail(error) {
+  cancelAnimationFrame(animationFrame);
+  bloomStart = null;
+  animationFrame = 0;
+  status.textContent = 'The bouquet could not be drawn. Please reload or try another browser.';
+  copyButton.disabled = true;
+  downloadButton.disabled = true;
+  replayButton.disabled = true;
+  console.error(error);
+}
+try {
+  render();
+  new ResizeObserver(() => {
+    try { render(); } catch (error) { fail(error); }
+  }).observe(document.querySelector('.art'));
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) playBloom();
+} catch (error) {
+  fail(error);
+}
+replayButton.addEventListener('click', () => {
+  try { playBloom(); } catch (error) { fail(error); }
+});
+copyButton.addEventListener('click',async()=> {
+  const text = fullBouquet.text;
+  const fallback = document.getElementById('copyFallback');
+  copyButton.disabled = true;
+  try { await navigator.clipboard.writeText(text);fallback.style.display='none';status.textContent=''; }
+  catch { fallback.style.display='block';fallback.value=text;fallback.focus();fallback.select();status.textContent='Clipboard unavailable. Copy the selected text manually.'; }
+  finally { copyButton.disabled = false; }
 });
 downloadButton.addEventListener('click', async () => {
   downloadButton.disabled = true;
@@ -164,8 +345,8 @@ downloadButton.addEventListener('click', async () => {
     const ctx = image.getContext('2d');
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, image.width, image.height);
-    ctx.fillStyle = '#e8dec5';
-    ctx.font = '46px system-ui, sans-serif';
+    ctx.fillStyle = '#f1e4c9';
+    ctx.font = '46px Georgia, serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(document.querySelector('.greeting').textContent, image.width / 2, 68);
