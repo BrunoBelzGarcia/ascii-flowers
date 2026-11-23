@@ -1,17 +1,18 @@
-# ASCII Flowers
+# ascii flowers
 
-ASCII Flowers is a little “Flowers for you” card. A wrapped bouquet blooms against a twinkling night sky. The page draws the flowers in colored ASCII characters, using the same idea as a face like `(^_^)` on a bigger canvas.
-
-[Open the card](https://brunobelzgarcia.github.io/ascii-flowers/)
-
+ASCII is a system that gives letters, numbers, and symbols their own number codes so computers can store and read text. For example, a capital “A” has the code 65, which the computer stores using zeros and ones. ASCII art uses those text characters, arranged with spaces and line breaks, to make pictures on the screen, from a face like (^_^) to some more detailed drawings.
+#
 I hope you like it <3
 
+Click on the link to view it: https://brunobelzgarcia.github.io/ascii-flowers/
 
+#
+Websites used for help:
 
-## References
+https://www.asciiart.eu/image-to-ascii
 
-- [Isaac-opz/asciiFlowers](https://github.com/Isaac-opz/asciiFlowers)
-- [ASCII Art Archive image-to-ASCII tool](https://www.asciiart.eu/image-to-ascii)
-- [ASCII Magic image-to-ASCII tool](https://www.ascii-magic.com/tools/image-to-ascii)
+https://www.ascii-magic.com/tools/image-to-ascii
 
-Plus lots of tutorial videos.
+https://github.com/Isaac-opz/asciiFlowers
+
+Plus lots of tutorial videos
