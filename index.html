@@ -64,7 +64,7 @@
   #replay:hover { color:#f1e4c9; text-decoration:underline; }
   #status { text-align:center; min-height:17px; margin:0; color:#c5baa3; font-size:12px; }
   .fallback { max-width:500px; margin:32px auto; padding:24px; }
-  #copyFallback { display:none; width:min(600px,90vw); height:160px; background:#111; color:white; font:12px/1.2 monospace; border:1px solid #888; }
+  #copyFallback { width:min(600px,90vw); height:160px; background:#111; color:white; font:12px/1.2 monospace; border:1px solid #888; }
   #copyFallback:focus { outline:2px solid #eed681; }
   @media(max-height:500px) { .greeting { padding-top:max(14px,env(safe-area-inset-top)); font-size:32px; } }
 </style>
@@ -80,7 +80,7 @@
       <button id="copy" type="button">Copy ASCII text</button>
     </div>
     <button id="replay" type="button">Replay bloom</button>
-    <textarea id="copyFallback" readonly aria-label="Flower text. Select all and copy."></textarea>
+    <textarea id="copyFallback" hidden readonly aria-label="Flower text. Select all and copy."></textarea>
     <p id="status" role="status" aria-live="polite"></p>
   </footer>
 </main>
@@ -88,19 +88,28 @@
 <script>
 'use strict';
 // Reference: https://github.com/Isaac-opz/asciiFlowers
-const canvas=document.getElementById('bouquet');
-const status=document.getElementById('status');
+const canvas = document.getElementById('bouquet');
+const statusMessage = document.getElementById('status');
 const copyButton = document.getElementById('copy');
 const downloadButton = document.getElementById('download');
 const replayButton = document.getElementById('replay');
 const BLOOM_DURATION = 6200;
 const BLOOM_FRAME_INTERVAL = 1000 / 24;
-const ramp=' .:-=+*cxoaX#%&@';
+const BOUQUET_WIDTH = 1000;
+const BOUQUET_HEIGHT = 1100;
+const GLYPH_WIDTH = 6;
+const GLYPH_HEIGHT = 9;
+const GOLDEN_ANGLE = 2.39996323;
+const brightnessGlyphs = ' .:-=+*cxoaX#%&@';
 let layout;
-let fullBouquet;
 let bloomStart = null;
 let animationFrame = 0;
-function rng(seed) { return () => { seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296; }; }
+function rng(seed) {
+  return () => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
+}
 function populateSky() {
   const random = rng(9743);
   const stars = document.createDocumentFragment();
@@ -205,8 +214,6 @@ function drawFrontPaper(ctx) {
   ctx.quadraticCurveTo(792, 682, 817, 616);
   ctx.fill();
 
-  ctx.strokeStyle = edge;
-  ctx.lineWidth = 4;
   ctx.beginPath();
   ctx.moveTo(817, 616);
   ctx.quadraticCurveTo(753, 672, 667, 699);
@@ -311,13 +318,28 @@ function drawWildflowers(ctx, time) {
 
 function drawScene(ctx, time) {
   drawBackPaper(ctx);
-  const random=rng(245), range=(a,b)=>a+random()*(b-a);
-  const curve=(tip,t)=> { const u=1-t;return [u*u*u*500+3*u*u*t*500+3*u*t*t*(500+(tip[0]-500)*.7)+t*t*t*tip[0],u*u*u*1050+3*u*u*t*830+3*u*t*t*(tip[1]+200)+t*t*t*tip[1]]; };
-  function stem(tip, growth, color = '#497c29', width = 4) {
+  const random = rng(245);
+  const range = (min, max) => min + random() * (max - min);
+
+  function stemPath(tip) {
+    return [[500, 1050], [500, 830], [500 + (tip[0] - 500) * .7, tip[1] + 200], tip];
+  }
+
+  function stemPoint([root, first, second, tip], t) {
+    const rest = 1 - t;
+    const rootWeight = rest * rest * rest;
+    const firstWeight = 3 * rest * rest * t;
+    const secondWeight = 3 * rest * t * t;
+    const tipWeight = t * t * t;
+    return [
+      rootWeight * root[0] + firstWeight * first[0] + secondWeight * second[0] + tipWeight * tip[0],
+      rootWeight * root[1] + firstWeight * first[1] + secondWeight * second[1] + tipWeight * tip[1],
+    ];
+  }
+
+  function drawStem(path, growth, color = '#497c29', width = 4) {
     if (growth <= 0) return;
-    const root = [500, 1050];
-    const first = [500, 830];
-    const second = [500 + (tip[0] - 500) * .7, tip[1] + 200];
+    const [root, first, second, tip] = path;
     ctx.strokeStyle = color;
     ctx.lineWidth = width;
     ctx.beginPath();
@@ -326,61 +348,101 @@ function drawScene(ctx, time) {
       // Split the curve at the growing tip so its shape stays fixed.
       const early = interpolate(root, first, growth);
       const middle = interpolate(first, second, growth);
-      ctx.bezierCurveTo(...early, ...interpolate(early, middle, growth), ...curve(tip, growth));
+      ctx.bezierCurveTo(...early, ...interpolate(early, middle, growth), ...stemPoint(path, growth));
     } else {
       ctx.bezierCurveTo(...first, ...second, ...tip);
     }
     ctx.stroke();
   }
-  function leaf(root,tip,width,bright,growth) {
+
+  function leaf(root, tip, width, bright, growth) {
     if (growth <= 0) return;
     if (growth < 1) {
       tip = interpolate(root, tip, growth);
       width *= growth;
     }
-    const dx=tip[0]-root[0],dy=tip[1]-root[1],len=Math.hypot(dx,dy),nx=-dy/len*width,ny=dx/len*width;
-    const grad=ctx.createLinearGradient(root[0]-nx*.42,root[1]-ny*.42,tip[0]+nx*.64,tip[1]+ny*.64);
-    grad.addColorStop(0,'#244a22');grad.addColorStop(.46,bright?'#668b35':'#3e6428');grad.addColorStop(1,bright?'#bacd64':'#729c43');
-    ctx.fillStyle=grad;ctx.beginPath();ctx.moveTo(...root);
-    ctx.bezierCurveTo(root[0]+dx*.28+nx,root[1]+dy*.28+ny,root[0]+dx*.75+nx,root[1]+dy*.75+ny,...tip);
-    ctx.bezierCurveTo(root[0]+dx*.67-nx,root[1]+dy*.67-ny,root[0]+dx*.2-nx,root[1]+dy*.2-ny,...root);ctx.fill();
+    const dx = tip[0] - root[0];
+    const dy = tip[1] - root[1];
+    const length = Math.hypot(dx, dy);
+    const normalX = -dy / length * width;
+    const normalY = dx / length * width;
+    const gradient = ctx.createLinearGradient(
+      root[0] - normalX * .42, root[1] - normalY * .42,
+      tip[0] + normalX * .64, tip[1] + normalY * .64,
+    );
+    gradient.addColorStop(0, '#244a22');
+    gradient.addColorStop(.46, bright ? '#668b35' : '#3e6428');
+    gradient.addColorStop(1, bright ? '#bacd64' : '#729c43');
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.moveTo(...root);
+    ctx.bezierCurveTo(
+      root[0] + dx * .28 + normalX, root[1] + dy * .28 + normalY,
+      root[0] + dx * .75 + normalX, root[1] + dy * .75 + normalY, ...tip,
+    );
+    ctx.bezierCurveTo(
+      root[0] + dx * .67 - normalX, root[1] + dy * .67 - normalY,
+      root[0] + dx * .2 - normalX, root[1] + dy * .2 - normalY, ...root,
+    );
+    ctx.fill();
     const vein = interpolate(root, tip, .85);
     ctx.strokeStyle = bright ? '#a9c85b' : '#7d9f47';
     ctx.lineWidth = Math.min(2.7, width * .24);
     ctx.beginPath();
     ctx.moveTo(...root);
-    ctx.quadraticCurveTo(root[0] + dx * .4 - nx * .13, root[1] + dy * .4 - ny * .13, ...vein);
+    ctx.quadraticCurveTo(root[0] + dx * .4 - normalX * .13, root[1] + dy * .4 - normalY * .13, ...vein);
     for (const t of [.36, .58]) {
       const [x, y] = interpolate(root, tip, t);
       ctx.moveTo(x, y);
-      ctx.lineTo(x + dx * .14 + nx * .52, y + dy * .14 + ny * .52);
+      ctx.lineTo(x + dx * .14 + normalX * .52, y + dy * .14 + normalY * .52);
       ctx.moveTo(x, y);
-      ctx.lineTo(x + dx * .14 - nx * .42, y + dy * .14 - ny * .42);
+      ctx.lineTo(x + dx * .14 - normalX * .42, y + dy * .14 - normalY * .42);
     }
     ctx.stroke();
   }
-  function lily(x,y,size,rotation) {
-    ctx.save();ctx.translate(x,y);ctx.rotate(rotation);ctx.scale(1,.88);
-    const freckles = [[-.46,.31,.057],[.41,.37,.049],[-.52,.49,.048],[.48,.55,.041],[-.35,.64,.035],[.31,.72,.026]];
-    for(let layer=0;layer<2;layer++)for(let p=0;p<3;p++) {
-      ctx.save();ctx.rotate(p*Math.PI*2/3+layer*Math.PI/3);
-      const length=size*(layer?.86:1),w=size*(layer?.24:.31);
-      const grad=ctx.createLinearGradient(-w,-length,w,8);grad.addColorStop(0,'#ffc1cc');grad.addColorStop(.28,layer?'#ee678e':'#ff8ead');grad.addColorStop(.62,'#dc316a');grad.addColorStop(1,'#6b0b36');
-      ctx.fillStyle=grad;ctx.strokeStyle=layer?'#cc406f':'#f98ca8';ctx.lineWidth=2.6;
-      ctx.beginPath();ctx.moveTo(0,8);ctx.bezierCurveTo(-w*.9,-length*.2,-w*1.25,-length*.86,6,-length);ctx.bezierCurveTo(w*.5,-length*1.08,w*1.35,-length*.3,0,8);ctx.fill();ctx.stroke();
-      ctx.strokeStyle = layer ? '#eb7798' : '#ffadc1';
-      ctx.lineWidth = size * .045;
-      ctx.beginPath();
-      ctx.moveTo(0, -length * .21);
-      ctx.quadraticCurveTo(-w * .14, -length * .56, 3, -length * .84);
-      ctx.stroke();
-      ctx.fillStyle = '#80103f';
-      for (const [offset, depth, radius] of freckles) {
+  function lily(x, y, size, rotation) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rotation);
+    ctx.scale(1, .88);
+    const freckles = [
+      [-.46, .31, .057], [.41, .37, .049], [-.52, .49, .048],
+      [.48, .55, .041], [-.35, .64, .035], [.31, .72, .026],
+    ];
+    for (let layer = 0; layer < 2; layer++) {
+      const length = size * (layer ? .86 : 1);
+      const width = size * (layer ? .24 : .31);
+      for (let petal = 0; petal < 3; petal++) {
+        ctx.save();
+        ctx.rotate(petal * Math.PI * 2 / 3 + layer * Math.PI / 3);
+        const gradient = ctx.createLinearGradient(-width, -length, width, 8);
+        gradient.addColorStop(0, '#ffc1cc');
+        gradient.addColorStop(.28, layer ? '#ee678e' : '#ff8ead');
+        gradient.addColorStop(.62, '#dc316a');
+        gradient.addColorStop(1, '#6b0b36');
+        ctx.fillStyle = gradient;
+        ctx.strokeStyle = layer ? '#cc406f' : '#f98ca8';
+        ctx.lineWidth = 2.6;
         ctx.beginPath();
-        ctx.ellipse(w * offset, -length * depth, size * radius * .72, size * radius, offset, 0, Math.PI * 2);
+        ctx.moveTo(0, 8);
+        ctx.bezierCurveTo(-width * .9, -length * .2, -width * 1.25, -length * .86, 6, -length);
+        ctx.bezierCurveTo(width * .5, -length * 1.08, width * 1.35, -length * .3, 0, 8);
         ctx.fill();
+        ctx.stroke();
+        ctx.strokeStyle = layer ? '#eb7798' : '#ffadc1';
+        ctx.lineWidth = size * .045;
+        ctx.beginPath();
+        ctx.moveTo(0, -length * .21);
+        ctx.quadraticCurveTo(-width * .14, -length * .56, 3, -length * .84);
+        ctx.stroke();
+        ctx.fillStyle = '#80103f';
+        for (const [offset, depth, radius] of freckles) {
+          ctx.beginPath();
+          ctx.ellipse(width * offset, -length * depth, size * radius * .72, size * radius, offset, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
       }
-      ctx.restore();
     }
     for (let i = 0; i < 6; i++) {
       const angle = i * Math.PI / 3;
@@ -399,19 +461,39 @@ function drawScene(ctx, time) {
     }
     ctx.restore();
   }
-  function sunflower(x,y,r,rotation) {
-    ctx.save();ctx.translate(x,y);ctx.rotate(rotation);ctx.scale(1,.90);
-    // Draw the sunflower.
-    for(let ring=0;ring<2;ring++)for(let n=0;n<26;n++) {
-      ctx.save();ctx.rotate(n*Math.PI*2/26+ring*.12);
-      const tip=r*(ring?.91:1)*range(.94,1.04),w=r*(ring?.11:.125),base=r*.27;
-      const grad=ctx.createLinearGradient(-w*.65,-tip,w*.75,-base);
-      grad.addColorStop(0,ring?'#fff0aa':'#ffd650');grad.addColorStop(.28,ring?'#ffda68':'#efb628');grad.addColorStop(.64,ring?'#df9c29':'#ca801a');grad.addColorStop(1,'#9e5516');
-      ctx.fillStyle=grad;ctx.beginPath();ctx.moveTo(0,-base);
-      ctx.bezierCurveTo(-w*1.3,-r*.55,-w,-tip*.88,range(-3,3),-tip);ctx.bezierCurveTo(w,-tip*.88,w*1.3,-r*.55,0,-base);ctx.fill();
-      ctx.strokeStyle=ring?'#ffe794':'#ffd060';ctx.lineWidth=r*.032;ctx.beginPath();ctx.moveTo(-w*.16,-r*.49);ctx.quadraticCurveTo(-w*.42,-tip*.73,0,-tip*.92);ctx.stroke();ctx.restore();
+  function sunflower(x, y, radius, rotation) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rotation);
+    ctx.scale(1, .90);
+    const petalBase = radius * .27;
+    for (let ring = 0; ring < 2; ring++) {
+      const width = radius * (ring ? .11 : .125);
+      for (let petal = 0; petal < 26; petal++) {
+        ctx.save();
+        ctx.rotate(petal * Math.PI * 2 / 26 + ring * .12);
+        const tip = radius * (ring ? .91 : 1) * range(.94, 1.04);
+        const gradient = ctx.createLinearGradient(-width * .65, -tip, width * .75, -petalBase);
+        gradient.addColorStop(0, ring ? '#fff0aa' : '#ffd650');
+        gradient.addColorStop(.28, ring ? '#ffda68' : '#efb628');
+        gradient.addColorStop(.64, ring ? '#df9c29' : '#ca801a');
+        gradient.addColorStop(1, '#9e5516');
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.moveTo(0, -petalBase);
+        ctx.bezierCurveTo(-width * 1.3, -radius * .55, -width, -tip * .88, range(-3, 3), -tip);
+        ctx.bezierCurveTo(width, -tip * .88, width * 1.3, -radius * .55, 0, -petalBase);
+        ctx.fill();
+        ctx.strokeStyle = ring ? '#ffe794' : '#ffd060';
+        ctx.lineWidth = radius * .032;
+        ctx.beginPath();
+        ctx.moveTo(-width * .16, -radius * .49);
+        ctx.quadraticCurveTo(-width * .42, -tip * .73, 0, -tip * .92);
+        ctx.stroke();
+        ctx.restore();
+      }
     }
-    const disk = r * .43;
+    const disk = radius * .43;
     const center = ctx.createRadialGradient(-disk * .16, -disk * .19, 1, 0, 0, disk);
     center.addColorStop(0, '#53331e');
     center.addColorStop(.5, '#674324');
@@ -422,100 +504,129 @@ function drawScene(ctx, time) {
     ctx.arc(0, 0, disk, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = '#d6a049';
-    ctx.lineWidth = r * .023;
+    ctx.lineWidth = radius * .023;
     ctx.beginPath();
     ctx.arc(0, 0, disk - ctx.lineWidth / 2, 0, Math.PI * 2);
     ctx.stroke();
     const seedCount = 132;
     for (let n = 0; n < seedCount; n++) {
-      const angle = n * 2.39996323;
+      const angle = n * GOLDEN_ANGLE;
       const distance = Math.sqrt(n / seedCount) * disk * .86;
       ctx.fillStyle = n % 8 < 2 ? '#e6bb68' : n % 5 === 0 ? '#9c6733' : '#bd8847';
       ctx.beginPath();
-      ctx.ellipse(Math.cos(angle) * distance, Math.sin(angle) * distance, r * .029, r * .018, angle + .55, 0, Math.PI * 2);
+      ctx.ellipse(Math.cos(angle) * distance, Math.sin(angle) * distance, radius * .029, radius * .018, angle + .55, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.restore();
   }
-  function aster(x,y,r,rotation,white=false) {
-    ctx.save();ctx.translate(x,y);ctx.rotate(rotation);ctx.scale(1,.85);
-    const tips = white ? ['#fffdf5','#f2f0e9','#ffffff'] : ['#d9baff','#d2a6ff','#f1d9ff'];
-    const shadows = white ? ['#adb6a7','#bec6b9','#d2d8c8'] : ['#7949b0','#945ecb','#b978e0'];
-    for(let ring=0;ring<3;ring++)for(let n=0;n<22;n++) {
-      ctx.save();ctx.rotate(n*Math.PI*2/22+ring*.14);
-      const tip=r*(1-ring*.16)*range(.94,1.05),w=r*.075;
-      const grad=ctx.createLinearGradient(-w,-tip,w,0);grad.addColorStop(0,tips[ring]);grad.addColorStop(.33,n%3===0?tips[ring]:shadows[ring]);grad.addColorStop(1,white?'#879384':'#4f277c');
-      ctx.fillStyle=grad;ctx.beginPath();ctx.moveTo(0,0);ctx.bezierCurveTo(-w*1.6,-tip*.45,-w,-tip,0,-tip);ctx.bezierCurveTo(w,-tip,w*1.6,-tip*.45,0,0);ctx.fill();
-      ctx.strokeStyle = tips[ring];
-      ctx.lineWidth = r * .032;
-      ctx.beginPath();
-      ctx.moveTo(-w * .22, -tip * .45);
-      ctx.quadraticCurveTo(-w * .42, -tip * .72, 0, -tip * .93);
-      ctx.stroke();
-      ctx.restore();
+  function aster(x, y, radius, rotation, white) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rotation);
+    ctx.scale(1, .85);
+    const tips = white ? ['#fffdf5', '#f2f0e9', '#ffffff'] : ['#d9baff', '#d2a6ff', '#f1d9ff'];
+    const shadows = white ? ['#adb6a7', '#bec6b9', '#d2d8c8'] : ['#7949b0', '#945ecb', '#b978e0'];
+    const width = radius * .075;
+    for (let ring = 0; ring < 3; ring++) {
+      for (let petal = 0; petal < 22; petal++) {
+        ctx.save();
+        ctx.rotate(petal * Math.PI * 2 / 22 + ring * .14);
+        const tip = radius * (1 - ring * .16) * range(.94, 1.05);
+        const gradient = ctx.createLinearGradient(-width, -tip, width, 0);
+        gradient.addColorStop(0, tips[ring]);
+        gradient.addColorStop(.33, petal % 3 === 0 ? tips[ring] : shadows[ring]);
+        gradient.addColorStop(1, white ? '#879384' : '#4f277c');
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.bezierCurveTo(-width * 1.6, -tip * .45, -width, -tip, 0, -tip);
+        ctx.bezierCurveTo(width, -tip, width * 1.6, -tip * .45, 0, 0);
+        ctx.fill();
+        ctx.strokeStyle = tips[ring];
+        ctx.lineWidth = radius * .032;
+        ctx.beginPath();
+        ctx.moveTo(-width * .22, -tip * .45);
+        ctx.quadraticCurveTo(-width * .42, -tip * .72, 0, -tip * .93);
+        ctx.stroke();
+        ctx.restore();
+      }
     }
-    const center = ctx.createRadialGradient(-r * .04, -r * .05, 0, 0, 0, r * .2);
+    const center = ctx.createRadialGradient(-radius * .04, -radius * .05, 0, 0, 0, radius * .2);
     center.addColorStop(0, '#ffe399');
     center.addColorStop(.6, '#dfb144');
     center.addColorStop(1, '#855722');
     ctx.fillStyle = center;
     ctx.beginPath();
-    ctx.arc(0, 0, r * .2, 0, Math.PI * 2);
+    ctx.arc(0, 0, radius * .2, 0, Math.PI * 2);
     ctx.fill();
     for (let n = 0; n < 21; n++) {
-      const angle = n * 2.39996323;
-      const distance = Math.sqrt(n / 21) * r * .158;
+      const angle = n * GOLDEN_ANGLE;
+      const distance = Math.sqrt(n / 21) * radius * .158;
       ctx.fillStyle = n % 3 === 0 ? '#fff0a8' : '#ca9133';
-      ctx.fillRect(Math.cos(angle) * distance, Math.sin(angle) * distance, r * .048, r * .048);
+      ctx.fillRect(Math.cos(angle) * distance, Math.sin(angle) * distance, radius * .048, radius * .048);
     }
     ctx.restore();
   }
-  const sprigs=[[155,450],[235,250],[355,155],[595,150],[765,260],[850,470],[190,650],[810,670]];
+  const sprigs = [[155,450],[235,250],[355,155],[595,150],[765,260],[850,470],[190,650],[810,670]];
   for (const [index, tip] of sprigs.entries()) {
+    const path = stemPath(tip);
     const growth = progress(time, 120 + index * 70, 2080);
-    stem(tip, growth, '#355b23', 3);
+    drawStem(path, growth, '#355b23', 3);
     for (let n = 0; n < 12; n++) {
       const position = .24 + n * .063;
-      const root = curve(tip, position);
+      const root = stemPoint(path, position);
       const side = n % 2 ? 1 : -1;
       const size = progress(growth, position, Math.min(.12, 1 - position));
       leaf(root, [root[0] + side * range(28,55), root[1] - range(24,45)], range(9,16), n % 3 === 0, size);
     }
   }
   const flowers = [
-    ['white', 315, 254, 65, -.2, 4250],
-    ['purple', 683, 257, 73, .3, 4550],
-    ['lily', 198, 405, 90, -.3, 3430],
-    ['lily', 804, 414, 86, .3, 3690],
-    ['sun', 500, 233, 132, -.1, 2350],
-    ['sun', 357, 398, 107, -.2, 2810],
-    ['sun', 647, 401, 108, .2, 3090],
-    ['purple', 266, 542, 68, -.3, 4780],
-    ['purple', 478, 508, 73, .15, 4060],
-    ['white', 729, 543, 72, .3, 4650],
-    ['purple', 587, 554, 56, .1, 4260],
+    { kind: 'white', x: 315, y: 254, radius: 65, angle: -.2, opensAt: 4250 },
+    { kind: 'purple', x: 683, y: 257, radius: 73, angle: .3, opensAt: 4550 },
+    { kind: 'lily', x: 198, y: 405, radius: 90, angle: -.3, opensAt: 3430 },
+    { kind: 'lily', x: 804, y: 414, radius: 86, angle: .3, opensAt: 3690 },
+    { kind: 'sun', x: 500, y: 233, radius: 132, angle: -.1, opensAt: 2350 },
+    { kind: 'sun', x: 357, y: 398, radius: 107, angle: -.2, opensAt: 2810 },
+    { kind: 'sun', x: 647, y: 401, radius: 108, angle: .2, opensAt: 3090 },
+    { kind: 'purple', x: 266, y: 542, radius: 68, angle: -.3, opensAt: 4780 },
+    { kind: 'purple', x: 478, y: 508, radius: 73, angle: .15, opensAt: 4060 },
+    { kind: 'white', x: 729, y: 543, radius: 72, angle: .3, opensAt: 4650 },
+    { kind: 'purple', x: 587, y: 554, radius: 56, angle: .1, opensAt: 4260 },
   ];
-  for (const [, x, y, , , opensAt] of flowers) {
-    const tip = [x, y];
+  for (const { x, y, opensAt } of flowers) {
+    const path = stemPath([x, y]);
     const start = opensAt * .14;
     const growth = progress(time, start, opensAt - start - 520);
-    stem(tip, growth);
+    drawStem(path, growth);
     for (let n = 0; n < 8; n++) {
       const position = .2 + n * .075;
-      const root = curve(tip, position);
+      const root = stemPoint(path, position);
       const side = n % 2 ? -1 : 1;
       const size = progress(growth, position, .15);
       leaf(root, [root[0] + side * range(58,95), root[1] - range(15,65)], range(8,17), n % 2 === 0, size);
     }
   }
-  const clouds=[[355,245],[650,205],[220,350],[785,350],[425,360],[580,360],[315,560],[650,565],[405,650],[565,740]];
-  for (const [index, cloud] of clouds.entries()) {
+  const fillerSprigs = [[355,245],[650,205],[220,350],[785,350],[425,360],[580,360],[315,560],[650,565],[405,650],[565,740]];
+  for (const [index, tip] of fillerSprigs.entries()) {
     const start = 680 + index * 85;
-    stem(cloud, progress(time, start, 1900), '#395a2e', 1.6);
+    drawStem(stemPath(tip), progress(time, start, 1900), '#395a2e', 1.6);
     ctx.save();
     ctx.globalAlpha = progress(time, start + 1850, 900);
-    for(let n=0;n<19;n++) { const a=range(0,Math.PI*2),r=range(4,33),x=cloud[0]+Math.cos(a)*r,y=cloud[1]+Math.sin(a)*r*.7;
-      ctx.strokeStyle='#778263';ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(...cloud);ctx.lineTo(x,y);ctx.stroke();ctx.fillStyle='#f6f2df';ctx.beginPath();ctx.arc(x,y,range(3.3,5.7),0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle = '#778263';
+    ctx.lineWidth = 1.2;
+    ctx.fillStyle = '#f6f2df';
+    for (let bloom = 0; bloom < 19; bloom++) {
+      const angle = range(0, Math.PI * 2);
+      const distance = range(4, 33);
+      const x = tip[0] + Math.cos(angle) * distance;
+      const y = tip[1] + Math.sin(angle) * distance * .7;
+      ctx.beginPath();
+      ctx.moveTo(...tip);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(x, y, range(3.3, 5.7), 0, Math.PI * 2);
+      ctx.fill();
     }
     ctx.restore();
   }
@@ -524,7 +635,7 @@ function drawScene(ctx, time) {
   drawWildflowers(ctx, time);
 
   const budColors = { sun: '#aa822e', lily: '#b32b54', purple: '#7959a8', white: '#9f9e76' };
-  for (const [kind, x, y, radius, angle, opensAt] of flowers) {
+  for (const { kind, x, y, radius, angle, opensAt } of flowers) {
     const open = progress(time, opensAt, 1280);
     const bud = progress(time, opensAt - 520, 520);
     const budOpacity = bud * (1 - progress(time, opensAt + 100, 470));
@@ -556,48 +667,75 @@ function drawScene(ctx, time) {
   }
 }
 function createBouquet(cols, time = BLOOM_DURATION) {
-  const rows = Math.round(cols * 1100 / 1000 * 6 / 9);
-  const scene=document.createElement('canvas');scene.width=cols;scene.height=rows;
-  const s=scene.getContext('2d',{willReadFrequently:true});if(!s)throw Error('Your browser could not create the drawing canvas.');
-  s.fillStyle='#000';s.fillRect(0,0,cols,rows);s.scale(cols/1000,rows/1100);drawScene(s,time);
-  const pixels=s.getImageData(0,0,cols,rows).data;
-  const art=document.createElement('canvas');art.width=cols*6;art.height=rows*9;
-  const a=art.getContext('2d');a.fillStyle='#000';a.fillRect(0,0,art.width,art.height);
-  a.font='10px Consolas, "Liberation Mono", monospace';a.textBaseline='top';
-  const lines=[];
-  for(let y=0;y<rows;y++) { let line='';for(let x=0;x<cols;x++) {
-    const i=(y*cols+x)*4,r=pixels[i],g=pixels[i+1],b=pixels[i+2],light=Math.max(r,g,b)/255;
-    const ch=light<.035?' ':ramp[Math.max(1,Math.min(ramp.length-1,Math.floor(light*(ramp.length-1))))];line+=ch;
-    if(ch!==' ') { a.fillStyle=`rgb(${r},${g},${b})`;a.fillText(ch,x*6,y*9); }
-  }lines.push(line.trimEnd()); }
+  const rows = Math.round(cols * BOUQUET_HEIGHT / BOUQUET_WIDTH * GLYPH_WIDTH / GLYPH_HEIGHT);
+  const scene = document.createElement('canvas');
+  scene.width = cols;
+  scene.height = rows;
+  const sceneContext = scene.getContext('2d', { willReadFrequently: true });
+  if (!sceneContext) throw new Error('Your browser could not create the drawing canvas.');
+  sceneContext.fillStyle = '#000';
+  sceneContext.fillRect(0, 0, cols, rows);
+  sceneContext.scale(cols / BOUQUET_WIDTH, rows / BOUQUET_HEIGHT);
+  drawScene(sceneContext, time);
+  const pixels = sceneContext.getImageData(0, 0, cols, rows).data;
+
+  const art = document.createElement('canvas');
+  art.width = cols * GLYPH_WIDTH;
+  art.height = rows * GLYPH_HEIGHT;
+  const artContext = art.getContext('2d');
+  artContext.fillStyle = '#000';
+  artContext.fillRect(0, 0, art.width, art.height);
+  artContext.font = '10px Consolas, "Liberation Mono", monospace';
+  artContext.textBaseline = 'top';
+
+  const lines = [];
+  for (let y = 0; y < rows; y++) {
+    let line = '';
+    for (let x = 0; x < cols; x++) {
+      const pixel = (y * cols + x) * 4;
+      const red = pixels[pixel];
+      const green = pixels[pixel + 1];
+      const blue = pixels[pixel + 2];
+      const brightness = Math.max(red, green, blue) / 255;
+      if (brightness < .035) {
+        line += ' ';
+        continue;
+      }
+      const glyph = brightnessGlyphs[Math.max(1, Math.floor(brightness * (brightnessGlyphs.length - 1)))];
+      line += glyph;
+      artContext.fillStyle = `rgb(${red},${green},${blue})`;
+      artContext.fillText(glyph, x * GLYPH_WIDTH, y * GLYPH_HEIGHT);
+    }
+    lines.push(line.trimEnd());
+  }
   return { art, text: lines.join('\n') + '\n' };
 }
-function render() {
+function resizeBouquet() {
   const { width, height } = canvas.getBoundingClientRect();
   // Crop some of the drawing's empty side margins on narrow screens.
-  const scale = Math.min((width - 12) / 900, (height - 16) / 1100);
+  const scale = Math.min((width - 12) / 900, (height - 16) / BOUQUET_HEIGHT);
   if (scale <= 0) return;
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   if (layout?.width === width && layout.height === height && layout.dpr === dpr) return;
-  const cols = Math.max(108, Math.min(220, Math.round(scale * 1000 / 4.1)));
-  if (layout?.cols !== cols) fullBouquet = createBouquet(cols);
-  layout = { width, height, scale, dpr, cols };
+  const cols = Math.max(108, Math.min(220, Math.round(scale * BOUQUET_WIDTH / 4.1)));
+  const finishedBouquet = layout?.cols === cols ? layout.finishedBouquet : createBouquet(cols);
   canvas.width = Math.round(width * dpr);
   canvas.height = Math.round(height * dpr);
-  const ctx = canvas.getContext('2d');
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.imageSmoothingQuality = 'high';
+  const canvasContext = canvas.getContext('2d');
+  if (!canvasContext) throw new Error('Your browser could not create the display canvas.');
+  canvasContext.setTransform(dpr, 0, 0, dpr, 0, 0);
+  canvasContext.imageSmoothingQuality = 'high';
+  layout = { width, height, scale, dpr, cols, finishedBouquet, canvasContext };
   paintFrame(bloomStart === null ? BLOOM_DURATION : performance.now() - bloomStart);
 }
 function paintFrame(time) {
-  const { width, height, scale, cols } = layout;
-  const { art } = time >= BLOOM_DURATION ? fullBouquet : createBouquet(cols, time);
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, width, height);
-  const artWidth = scale * 1000;
-  const artHeight = scale * 1100;
-  ctx.drawImage(art, (width - artWidth) / 2, (height - artHeight) / 2, artWidth, artHeight);
+  const { width, height, scale, cols, finishedBouquet, canvasContext } = layout;
+  const { art } = time >= BLOOM_DURATION ? finishedBouquet : createBouquet(cols, time);
+  canvasContext.fillStyle = '#000';
+  canvasContext.fillRect(0, 0, width, height);
+  const artWidth = scale * BOUQUET_WIDTH;
+  const artHeight = scale * BOUQUET_HEIGHT;
+  canvasContext.drawImage(art, (width - artWidth) / 2, (height - artHeight) / 2, artWidth, artHeight);
 }
 function playBloom() {
   if (!layout) return;
@@ -631,7 +769,7 @@ function fail(error) {
   cancelAnimationFrame(animationFrame);
   bloomStart = null;
   animationFrame = 0;
-  status.textContent = 'The bouquet could not be drawn. Please reload or try another browser.';
+  statusMessage.textContent = 'The bouquet could not be drawn. Please reload or try another browser.';
   copyButton.disabled = true;
   downloadButton.disabled = true;
   replayButton.disabled = true;
@@ -639,9 +777,9 @@ function fail(error) {
 }
 try {
   populateSky();
-  render();
+  resizeBouquet();
   new ResizeObserver(() => {
-    try { render(); } catch (error) { fail(error); }
+    try { resizeBouquet(); } catch (error) { fail(error); }
   }).observe(document.querySelector('.art'));
   if (!matchMedia('(prefers-reduced-motion: reduce)').matches) playBloom();
 } catch (error) {
@@ -650,13 +788,24 @@ try {
 replayButton.addEventListener('click', () => {
   try { playBloom(); } catch (error) { fail(error); }
 });
-copyButton.addEventListener('click',async()=> {
-  const text = fullBouquet.text;
+copyButton.addEventListener('click', async () => {
+  if (!layout) return;
+  const { text } = layout.finishedBouquet;
   const fallback = document.getElementById('copyFallback');
   copyButton.disabled = true;
-  try { await navigator.clipboard.writeText(text);fallback.style.display='none';status.textContent=''; }
-  catch { fallback.style.display='block';fallback.value=text;fallback.focus();fallback.select();status.textContent='Clipboard unavailable. Copy the selected text manually.'; }
-  finally { copyButton.disabled = false; }
+  try {
+    await navigator.clipboard.writeText(text);
+    fallback.hidden = true;
+    statusMessage.textContent = '';
+  } catch {
+    fallback.value = text;
+    fallback.hidden = false;
+    fallback.focus();
+    fallback.select();
+    statusMessage.textContent = 'Clipboard unavailable. Copy the selected text manually.';
+  } finally {
+    copyButton.disabled = false;
+  }
 });
 downloadButton.addEventListener('click', async () => {
   downloadButton.disabled = true;
@@ -677,17 +826,21 @@ downloadButton.addEventListener('click', async () => {
 
     const png = await new Promise(resolve => image.toBlob(resolve, 'image/png'));
     if (!png) throw new Error('Could not encode the bouquet as a PNG.');
-    const url = URL.createObjectURL(png);
     const link = document.createElement('a');
+    const url = URL.createObjectURL(png);
     link.href = url;
     link.download = 'ascii-flowers.png';
-    document.body.append(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    status.textContent = 'PNG download started.';
+    try {
+      document.body.append(link);
+      link.click();
+    } finally {
+      link.remove();
+      // Give the browser time to start reading the download before revoking its URL.
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+    statusMessage.textContent = 'PNG download started.';
   } catch (error) {
-    status.textContent = 'Could not download the PNG. Please try again.';
+    statusMessage.textContent = 'Could not download the PNG. Please try again.';
     console.error(error);
   } finally {
     downloadButton.disabled = false;
